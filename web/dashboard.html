@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Smart Parking Premium - Digital Twin</title>
+  <style>
+    :root { --free:#1f9d3a; --occ:#cc2222; --res:#e0a000; --bg:#0f1320; --card:#1a2032; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:#e8ecf5; }
+    header { padding:16px 24px; background:var(--card); display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
+    header h1 { font-size:20px; margin:0; }
+    header .sub { color:#8b93a7; font-size:13px; }
+    main { padding:24px; display:grid; grid-template-columns: 1fr 1fr; gap:24px; }
+    @media (max-width: 900px) { main { grid-template-columns:1fr; } }
+    .panel { background:var(--card); border-radius:12px; padding:16px; }
+    .panel h2 { margin:0 0 12px; font-size:15px; color:#aeb6cc; text-transform:uppercase; letter-spacing:.5px; }
+    .stats { display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
+    .stat { font-size:13px; } .stat b { font-size:22px; display:block; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(90px,1fr)); gap:10px; }
+    .slot { border-radius:10px; padding:14px 8px; text-align:center; font-weight:600; color:#fff; }
+    .slot small { display:block; font-weight:400; opacity:.85; font-size:11px; margin-top:4px; }
+    .free { background:var(--free); } .occupied { background:var(--occ); } .reserved { background:var(--res); }
+    .barrier { font-size:18px; font-weight:700; padding:10px 14px; border-radius:10px; display:inline-block; }
+    .barrier.open { background:var(--free); } .barrier.closed { background:#444b60; }
+    img.video { width:100%; border-radius:10px; background:#000; }
+    .peer { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #2a3145; }
+    .peer:last-child { border-bottom:none; }
+    .badge { padding:2px 8px; border-radius:8px; font-size:12px; }
+    .badge.up { background:var(--free); } .badge.down { background:#555; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="pname">Smart Parking Premium</h1>
+    <span class="sub" id="updated"></span>
+  </header>
+  <main>
+    <section class="panel">
+      <h2>Digital Twin - Stalli</h2>
+      <div class="stats">
+        <div class="stat"><b id="s-free" style="color:var(--free)">0</b>liberi</div>
+        <div class="stat"><b id="s-occ" style="color:var(--occ)">0</b>occupati</div>
+        <div class="stat"><b id="s-res" style="color:var(--res)">0</b>riservati</div>
+        <div class="stat"><b id="s-tot">0</b>totali</div>
+      </div>
+      <div class="grid" id="grid"></div>
+      <h2 style="margin-top:20px">Sbarra</h2>
+      <span class="barrier closed" id="barrier">--</span>
+      <h2 style="margin-top:20px">Parcheggi federati</h2>
+      <div id="peers"></div>
+    </section>
+    <section class="panel">
+      <h2>Sensore di visione (live)</h2>
+      <button id="btn-ref" style="margin-bottom:10px;padding:8px 12px;border:none;border-radius:8px;background:#3a4a6b;color:#fff;cursor:pointer">Cattura sfondo (parcheggio vuoto)</button>
+      <span id="ref-msg" style="font-size:12px;color:#8b93a7;margin-left:8px"></span>
+      <img class="video" id="video" alt="stream non disponibile" />
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    async function refreshState() {
+      try {
+        const r = await fetch("/twin/state"); const d = await r.json();
+        $("pname").textContent = d.name;
+        $("updated").textContent = "aggiornato: " + new Date(d.updated_at).toLocaleTimeString();
+        $("s-free").textContent = d.free; $("s-occ").textContent = d.occupied;
+        $("s-res").textContent = d.reserved; $("s-tot").textContent = d.total;
+        const grid = $("grid"); grid.innerHTML = "";
+        for (const s of d.slots) {
+          const el = document.createElement("div");
+          el.className = "slot " + s.state;
+          el.innerHTML = s.id + "<small>" + (s.reserved_by ? "@"+s.reserved_by : s.state) + "</small>";
+          grid.appendChild(el);
+        }
+      } catch (e) { /* istanza non raggiungibile */ }
+    }
+
+    async function refreshBarrier() {
+      try {
+        const r = await fetch("/barrier"); const d = await r.json();
+        const b = $("barrier");
+        b.textContent = d.is_open ? "APERTA" : "CHIUSA";
+        b.className = "barrier " + (d.is_open ? "open" : "closed");
+      } catch (e) {}
+    }
+
+    async function refreshPeers() {
+      try {
+        const r = await fetch("/federation/peers"); const d = await r.json();
+        const box = $("peers"); box.innerHTML = "";
+        for (const p of d.peers) {
+          const el = document.createElement("div");
+          el.className = "peer";
+          el.innerHTML = "<span>" + p.name + "</span>" +
+            "<span><b>" + p.free + "</b>/" + p.total + " liberi " +
+            "<span class='badge " + (p.online?"up":"down") + "'>" +
+            (p.online?"online":"offline") + "</span></span>";
+          box.appendChild(el);
+        }
+      } catch (e) {}
+    }
+
+    // lo stream MJPEG si imposta una volta sola
+    $("video").src = "/video";
+    $("video").onerror = () => { $("video").style.display = "none"; };
+
+    // pulsante: cattura lo sfondo vuoto per il metodo CV
+    $("btn-ref").onclick = async () => {
+      try {
+        const r = await fetch("/vision/reference", { method: "POST" });
+        const d = await r.json();
+        $("ref-msg").textContent = r.ok ? "Sfondo aggiornato." : (d.detail || "Errore");
+      } catch (e) { $("ref-msg").textContent = "Errore di rete"; }
+      setTimeout(() => { $("ref-msg").textContent = ""; }, 3000);
+    };
+
+    function tick() { refreshState(); refreshBarrier(); refreshPeers(); }
+    tick();
+    setInterval(refreshState, 800);
+    setInterval(refreshBarrier, 800);
+    setInterval(refreshPeers, 3000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# Configuration of the "IKEA Bologna" instance (the federated neighboring parking).
+# Runs on the same machine on a different port, with vision DISABLED
+# (a single laptop has a single webcam): its state is driven by hand via API/dashboard.
+
+parking:
+  id: ikea
+  name: "IKEA Bologna"
+  port: 8002
+
+entrance:
+  lat: 44.47750
+  lon: 11.28900
+
+unlock_threshold_m: 150
+
+# 8 slots, all free at startup. No ROI: vision is disabled.
+slots:
+  - { id: B1 }
+  - { id: B2 }
+  - { id: B3 }
+  - { id: B4 }
+  - { id: B5 }
+  - { id: B6 }
+  - { id: B7 }
+  - { id: B8 }
+
+vision:
+  source: "none"             # no webcam on this instance
+  model: "yolo11n.pt"
+  conf: 0.25
+  vehicle_classes: [2, 5, 7]
+  loop_fps: 8
+
+federation:
+  peers:
+    - { id: granreno, name: "Gran Reno - Coperto", url: "http://127.0.0.1:8001" }

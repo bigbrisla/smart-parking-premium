@@ -1,0 +1,17 @@
+# --- Core API / Digital Twin (edge level) ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+PyYAML==6.0.2
+httpx==0.28.1
+
+# --- Vision ---
+# ultralytics downloads the yolo11n.pt weight automatically on first run (needs internet ONCE)
+ultralytics==8.3.55
+opencv-python==4.10.0.84
+
+# --- Telegram bot (cloud level) ---
+python-telegram-bot==21.9
+
+# --- Dev/test ---
+pytest==8.3.4

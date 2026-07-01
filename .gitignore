@@ -1,0 +1,41 @@
+# === Secrets: NEVER commit ===
+.env
+*.env
+!.env.example
+
+# === Virtual environment ===
+.venv/
+venv/
+env/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# === Generated data (images, backgrounds, videos): not needed ===
+#   keep the folder (data/.gitkeep) but not its content
+data/*
+!data/.gitkeep
+
+# === Models / weights ===
+*.pt
+*.onnx
+
+# === Scattered images / videos (calibration previews, spikes, etc.) ===
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.avi
+*.mov
+
+# === Local documentation (not published) ===
+docs/
+
+# === Operating system / editor ===
+.DS_Store
+*.swp
+.idea/
